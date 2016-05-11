@@ -56,6 +56,8 @@ Opts:
     Override maintainer script prerm template (default: 'node_deb.templates.prem' from package.json then built-in)
   --template-systemd-service)
     Override systemd unit template (default: 'node_deb.templates.systemd_service' from package.json then built-in)
+  --template-systemd-socket)
+    Override systemd unit template (default: 'node_deb.templates.systemd_socket' from package.json then built-in)
   --template-upstart-conf)
     Override upstart conf template (default: 'node_deb.templates.upstart_conf' from package.json then built-in)
   -u | --user)

@@ -131,7 +131,7 @@ while [ -n "$1" ]; do
       exit 0
       ;;
     -i | --init)
-      # HELPDOC: Init script type {auto, upstart, systemd, none}. 'auto' chooses upstart or systemd. 'none' makes no init script. (default: 'node_deb.init' from package.json then 'auto')
+      # HELPDOC: Init script type {auto, upstart, systemd, systemd_socket, none}. 'auto' chooses upstart or systemd. 'none' makes no init script. (default: 'node_deb.init' from package.json then 'auto')
       zero_check "$value" "$param"
       init="$value"
       shift
@@ -206,6 +206,12 @@ while [ -n "$1" ]; do
       # HELPDOC: Override systemd unit template (default: 'node_deb.templates.systemd_service' from package.json then built-in)
       zero_check "$value" "$param"
       template_systemd="$param"
+      shift
+      ;;
+    --template-systemd-socket)
+      # HELPDOC: Override systemd unit template (default: 'node_deb.templates.systemd_socket' from package.json then built-in)
+      zero_check "$value" "$param"
+      template_systemd_socket="$param"
       shift
       ;;
     --template-upstart-conf)
@@ -344,10 +350,10 @@ if [ -z "$init" ]; then
   fi
 fi
 case $init in
-  auto|upstart|systemd|none)
+  auto|upstart|systemd|systemd_socket|none)
     ;;
   *)
-    die "Invalid init type: $init. Must be 'auto', 'upstart', 'systemd', or 'none'"
+    die "Invalid init type: $init. Must be 'auto', 'upstart', 'systemd', 'systemd_socket', or 'none'"
 esac
 log_debug "The init type has been set to: $init"
 
@@ -411,6 +417,16 @@ fi
 : ${template_systemd:="$node_deb_dir/templates/systemd.service"}
 log_debug "The systemd template has been set to: $template_systemd"
 
+# Set systemd socket unit template
+if [ -z "$template_systemd_socket" ]; then
+  template_systemd_socket=$(jq -r '.node_deb.templates.systemd_socket' package.json)
+  if [[ "$template_systemd_socket" == 'null' ]]; then
+    template_systemd_socket=''
+  fi
+fi
+: ${template_systemd_socket:="$node_deb_dir/templates/systemd.socket"}
+log_debug "The systemd socket template has been set to: $template_systemd_socket"
+
 # Set upstart conf template
 if [ -z "$template_upstart" ]; then
   template_upstart=$(jq -r '.node_deb.templates.upstart_conf' package.json)
@@ -446,7 +462,7 @@ if [[ "$init" == 'auto' ]] || [[ "$init" == 'upstart' ]]; then
   mkdir -p "$deb_dir/etc/init"
 fi
 
-if [[ "$init" == 'auto' ]] || [[ "$init" == 'systemd' ]]; then
+if [[ "$init" == 'auto' || "$init" == 'systemd' || "$init" == 'systemd_socket' ]]; then
   mkdir -p "$deb_dir/etc/systemd/system"
 fi
 
@@ -490,6 +506,11 @@ fi
 
 if [ "$init" == 'auto' ] || [ "$init" == 'systemd' ]; then
   replace_vars "$template_systemd" "$deb_dir/etc/systemd/system/$package_name.service"
+fi
+
+if [ "$init" == 'auto' ] || [ "$init" == 'systemd_socket' ]; then
+  replace_vars "$template_systemd" "$deb_dir/etc/systemd/system/$package_name.service"
+  replace_vars "$template_systemd_socket" "$deb_dir/etc/systemd/system/$package_name.socket"
 fi
 
 log_debug 'Templates rendered successfully'

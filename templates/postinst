@@ -55,16 +55,26 @@ start_service () {
     if [[ "$init_type" == 'auto' || "$init_type" == 'upstart' ]]; then
       start "$service_name" || echo "$service_name could not be registered or started" # using `|| echo` to ensure script exits with 0. Failure to start is not failure to install
     fi
-  elif hash systemctl 2> /dev/null; then
+  else
+    # using `echo` to ensure script exits with 0. Failure to start is not failure to install
+    echo 'Your system does not appear to use upstart, so the service could not be started'
+  fi
+
+  if hash systemctl 2> /dev/null; then
     if [[ "$init_type" == 'auto' || "$init_type" == 'systemd' ]]; then
       {
         systemctl enable "$service_name.service" && \
         systemctl start "$service_name.service"
       } || echo "$service_name could not be registered or started" # using `|| echo` to ensure script exits with 0. Failure to start is not failure to install
+    elif [[ "$init_type" == 'auto' || "$init_type" == 'systemd_socket' ]]; then
+      {
+        systemctl enable "$service_name.socket" && \
+        systemctl start "$service_name.socket"
+      } || echo "$service_name.socket could not be registered or started" # using `|| echo` to ensure script exits with 0. Failure to start is not failure to install
     fi
   else
     # using `echo` to ensure script exits with 0. Failure to start is not failure to install
-    echo 'Your system does not appear to use upstart or systemd, so the service could not be started'
+    echo 'Your system does not appear to use systemd, so the service could not be started'
   fi
 }
 
@@ -82,6 +92,6 @@ mkdir -p '/var/log/{{ node_deb_package_name }}'
 
 chown -R '{{ node_deb_user }}:{{ node_deb_group }}' '/var/log/{{ node_deb_package_name }}'
 
-if [[ "$init_type" == 'auto' ]] || [[ "$init_type" == 'systemd' ]] || [[ "$init_type" == 'upstart' ]]; then
+if [[ "$init_type" == 'auto' ]] || [[ "$init_type" == 'systemd' ]] || [[ "$init_type" == 'systemd_socket' ]] || [[ "$init_type" == 'upstart' ]]; then
   start_service '{{ node_deb_package_name }}'
 fi
